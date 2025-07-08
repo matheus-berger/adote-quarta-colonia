@@ -5,14 +5,18 @@ import {
   buscarAdotantePorId,
   atualizarAdotante,
   excluirAdotante
-} from '../controllers/AdotanteController'; 
+} from '../controllers/AdotanteController';
+import { authorize, protect } from '../middlewares/authMiddlaware';
 
-const router = Router(); 
+const router = Router();
 
-router.post('/', criarAdotante as RequestHandler);
-router.get('/', listarAdotantes as RequestHandler); 
+// Rotas públicas
+router.get('/', listarAdotantes as RequestHandler);
 router.get('/:id', buscarAdotantePorId as RequestHandler);
-router.put('/:id', atualizarAdotante as RequestHandler); 
-router.delete('/:id', excluirAdotante as RequestHandler); 
+
+// Rotas protegidas (requerem autenticação e autorização de 'administrador')
+router.post('/', protect as RequestHandler, authorize('administrador') as RequestHandler, criarAdotante as RequestHandler);
+router.put('/:id', protect as RequestHandler, authorize('administrador') as RequestHandler, atualizarAdotante as RequestHandler);
+router.delete('/:id', protect as RequestHandler, authorize('administrador') as RequestHandler, excluirAdotante as RequestHandler);
 
 export default router; 
