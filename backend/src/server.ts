@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
+import abrigoRoutes from './routes/abrigoRoutes';
+import animalRoutes from './routes/animalRoutes';
 
 dotenv.config();
 
@@ -31,6 +33,10 @@ mongoose.connect(MONGO_URI)
 
 // Middleware para JSON no corpo das requisições
 app.use(express.json());
+
+// Rotas da API
+app.use('/api/abrigos', abrigoRoutes); // Monta as rotas de abrigo em /api/abrigos
+app.use('/api/animais', animalRoutes); // Monta as rotas de animal em /api/animais
 
 // Rota de teste simples
 app.get('/', (req, res) => {
