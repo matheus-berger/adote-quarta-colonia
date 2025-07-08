@@ -6,6 +6,7 @@ import animalRoutes from './routes/animalRoutes';
 import adotanteRoutes from './routes/adotanteRoutes';
 import adocaoRoutes from './routes/adocaoRoutes';
 import authRoutes from './routes/authRoutes';
+import cors from 'cors'
 
 dotenv.config();
 
@@ -33,6 +34,17 @@ mongoose.connect(MONGO_URI)
     console.error('Erro ao conectar ao MongoDB Atlas:', error.message);
     process.exit(1);
   });
+
+// --- Configuração do CORS ---
+// Em desenvolvimento, permitir de qualquer origem é prático.
+// Em produção, você deve especificar as origens permitidas!
+app.use(cors({
+  origin: 'http://localhost:5173', // Permite requisições APENAS do seu frontend local
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Métodos HTTP permitidos
+  allowedHeaders: ['Content-Type', 'Authorization'], // Cabeçalhos permitidos
+  credentials: true // Permite o envio de cookies e cabeçalhos de autorização
+}));
+// --- Fim da Configuração do CORS ---
 
 // Middleware para JSON no corpo das requisições
 app.use(express.json());
