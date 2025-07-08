@@ -15,9 +15,9 @@ interface AuthState {
 export interface AuthContextType {
   authState: AuthState;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, role: string, entityId?: string) => Promise<void>;
+  register: (email: string, password: string, role: string, nome?: string, endereco?: string, telefone?: string) => Promise<void>;
   logout: () => void;
-  checkAuth: () => Promise<void>; // Função para verificar autenticação ao carregar a aplicação
+  checkAuth: () => Promise<void>;
 }
 
 // Cria o contexto com um valor inicial padrão
@@ -102,31 +102,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // Função de registro
-  const register = async (email: string, password: string, role: string, entityId?: string) => {
+  const register = async (email: string, password: string, role: string, nome?: string, endereco?: string, telefone?: string) => {
     setAuthState((prev) => ({ ...prev, loading: true, error: null }));
     try {
-      const response = await api.post('/auth/register', { email, password, role, entityId });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token); // Armazena o token
-      setAuthState({
-          token,
-          user,
-          isAuthenticated: true,
-          loading: false,
-          error: null,
-      });
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`; // Configura o token para futuras requisições
+        const response = await api.post('/auth/register', {
+            email,
+            password,
+            role,
+            // Inclui os novos campos apenas se existirem (para não enviar 'undefined' para admin)
+            ...(nome && { nome }),
+            ...(endereco && { endereco }),
+            ...(telefone && { telefone }),
+        });
+        const { token, user } = response.data;
+        localStorage.setItem('token', token);
+        setAuthState({
+            token,
+            user,
+            isAuthenticated: true,
+            loading: false,
+            error: null,
+        });
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } catch (err: any) {
-      console.error('Erro no registro:', err);
-      localStorage.removeItem('token');
-      setAuthState({
-        token: null,
-        user: null,
-        isAuthenticated: false,
-        loading: false,
-        error: err.response?.data?.message || 'Erro ao registrar. Tente novamente.',
-      });
-      throw err; // Rejeita a Promise para que o componente possa lidar com o erro
+        console.error('Erro no registro:', err);
+        localStorage.removeItem('token');
+        setAuthState({
+            token: null,
+            user: null,
+            isAuthenticated: false,
+            loading: false,
+            error: err.response?.data?.message || 'Erro ao registrar. Tente novamente.',
+        });
+        throw err;
     }
   };
 
