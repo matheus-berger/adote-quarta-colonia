@@ -5,6 +5,7 @@ import abrigoRoutes from './routes/abrigoRoutes';
 import animalRoutes from './routes/animalRoutes';
 import adotanteRoutes from './routes/adotanteRoutes';
 import adocaoRoutes from './routes/adocaoRoutes';
+import authRoutes from './routes/authRoutes';
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use('/api/abrigos', abrigoRoutes); // Monta as rotas de abrigo em /api/abrig
 app.use('/api/animais', animalRoutes); // Monta as rotas de animal em /api/animais
 app.use('/api/adotantes', adotanteRoutes); // Monta as rotas de adotante em /api/adotantes
 app.use('/api/adocoes', adocaoRoutes); // Monta as rotas de adoção em /api/adocoes
+app.use('/api/auth', authRoutes); // Monta as rotas de autenticação em /api/auth
 
 // Rota de teste simples
 app.get('/', (req, res) => {
