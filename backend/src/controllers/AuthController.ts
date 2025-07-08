@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import User, { IUser, UserRole } from '../models/User';
-import Abrigo from '../models/Abrigo';
-import Adotante from '../models/Adotante';
+import Abrigo, { IAbrigo } from '../models/Abrigo';
+import Adotante, { IAdotante } from '../models/Adotante';
 import mongoose, { HydratedDocument } from 'mongoose';
 
 // Função auxiliar para gerar e enviar o token JWT
@@ -30,54 +30,75 @@ const sendTokenResponse = (user: HydratedDocument<IUser>, statusCode: number, re
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, role, entityId } = req.body;
+    // Desestrutura os campos do corpo da requisição
+    // Incluímos nome, endereco, telefone que serão usados para criar Abrigo/Adotante
+    const { email, password, role, nome, endereco, telefone } = req.body;
 
-    // Validação básica de campos
+    // Validação básica de campos essenciais
     if (!email || !password || !role) {
       return res.status(400).json({ message: 'Por favor, forneça e-mail, senha e tipo de usuário.' });
     }
 
-    // Verificar e validar entityId com base no role
+    let createdEntityId: mongoose.Types.ObjectId | undefined;
+
+    // Lógica para criar a entidade (Abrigo ou Adotante) com base no 'role'
     if (role === 'abrigo') {
-      if (!entityId || !mongoose.Types.ObjectId.isValid(entityId)) {
-        return res.status(400).json({ message: 'ID do abrigo é obrigatório e deve ser válido para o tipo "abrigo".' });
+      // Para abrigos, nome, endereço e telefone são obrigatórios
+      if (!nome || !endereco || !telefone) {
+        return res.status(400).json({ message: 'Para o tipo "abrigo", nome, endereço e telefone são obrigatórios.' });
       }
-      const abrigo = await Abrigo.findById(entityId);
-      if (!abrigo) {
-        return res.status(404).json({ message: 'Abrigo não encontrado para vincular.' });
-      }
+      // Cria um novo Abrigo com os dados fornecidos
+      const novoAbrigo: HydratedDocument<IAbrigo> = new Abrigo({ nome, endereco, telefone, email });
+      await novoAbrigo.save(); // Salva o abrigo no banco de dados
+      createdEntityId = novoAbrigo._id; // Obtém o ID do abrigo recém-criado
     } else if (role === 'adotante') {
-      if (!entityId || !mongoose.Types.ObjectId.isValid(entityId)) {
-        return res.status(400).json({ message: 'ID do adotante é obrigatório e deve ser válido para o tipo "adotante".' });
+      // Para adotantes, nome, endereço e telefone também são obrigatórios
+      if (!nome || !endereco || !telefone) {
+        return res.status(400).json({ message: 'Para o tipo "adotante", nome, endereço e telefone são obrigatórios.' });
       }
-      const adotante = await Adotante.findById(entityId);
-      if (!adotante) {
-        return res.status(404).json({ message: 'Adotante não encontrado para vincular.' });
-      }
+      // Cria um novo Adotante com os dados fornecidos
+      const novoAdotante: HydratedDocument<IAdotante> = new Adotante({ nome, endereco, telefone, email });
+      await novoAdotante.save(); // Salva o adotante no banco de dados
+      createdEntityId = novoAdotante._id; // Obtém o ID do adotante recém-criado
     } else if (role === 'administrador') {
-      // Administradores podem não ter um entityId, ou ter um específico para admin
-      // Por enquanto, não exigimos entityId para admin
-      if (entityId && !mongoose.Types.ObjectId.isValid(entityId)) {
-        return res.status(400).json({ message: 'ID de entidade de administrador inválido, se fornecido.' });
-      }
+      // Administradores não são vinculados a uma entidade Abrigo/Adotante
+      createdEntityId = undefined;
     } else {
+      // Caso o 'role' seja inválido
       return res.status(400).json({ message: 'Tipo de usuário (role) inválido.' });
     }
 
-    // Cria o novo usuário
-    const user: HydratedDocument<IUser> = new User({ email, password, role, entityId });
-    await user.save();
+    // Cria o novo usuário no sistema
+    const user: HydratedDocument<IUser> = new User({
+      email,
+      password,
+      role,
+      entityId: createdEntityId // Vincula o ID da entidade recém-criada ao usuário
+    });
+    await user.save(); // Salva o usuário no banco de dados (a senha será hashada automaticamente)
 
-    sendTokenResponse(user, 201, res); // Envia o token e os dados do usuário
+    // Envia a resposta com o token JWT e os dados do usuário
+    sendTokenResponse(user, 201, res);
   } catch (error: any) {
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map((val: any) => val.message);
-      return res.status(400).json({ message: messages.join(', ') });
-    }
-    if (error.code === 11000) {
-      return res.status(400).json({ message: 'E-mail já cadastrado.' });
-    }
-    res.status(500).json({ message: 'Erro ao registrar usuário', error: error.message });
+      // Tratamento de erros de validação e duplicidade
+      if (error.name === 'ValidationError') {
+          const messages = Object.values(error.errors).map((val: any) => val.message);
+          return res.status(400).json({ message: messages.join(', ') });
+      }
+      if (error.code === 11000) { // Erro de chave duplicada (e.g., email, nome)
+          let errorMessage = 'E-mail já cadastrado.';
+          // Verifica se a duplicidade é no nome do abrigo/adotante
+          if (error.keyPattern && error.keyPattern.nome) {
+              errorMessage = 'Nome do abrigo/adotante já cadastrado.';
+          }
+          // Verifica se a duplicidade é no e-mail do abrigo/adotante (se for diferente do e-mail do usuário)
+          else if (error.keyPattern && error.keyPattern.email) {
+              errorMessage = 'E-mail já cadastrado para outra entidade ou usuário.';
+          }
+          return res.status(400).json({ message: errorMessage });
+      }
+      console.error('Erro ao registrar usuário:', error);
+      res.status(500).json({ message: 'Erro interno do servidor ao registrar usuário.', error: error.message });
   }
 };
 
